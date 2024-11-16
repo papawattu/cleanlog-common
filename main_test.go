@@ -1,0 +1,272 @@
+package main
+
+import (
+	"context"
+	"log"
+	"testing"
+)
+
+var (
+	nextEventCalled,
+	postEventCalled,
+	createCalled,
+	saveCalled,
+	getCalled,
+	getAllCalled,
+	deleteCalled,
+	existsCalled,
+	getIdCalled int
+)
+var mockEvent *Event
+
+type testRepo[T any, S comparable] struct {
+	t *testing.T
+}
+
+func (t *testRepo[T, S]) Create(ctx context.Context, e T) error {
+	createCalled++
+	return nil
+}
+
+func (t *testRepo[T, S]) Save(ctx context.Context, e T) error {
+	saveCalled++
+	return nil
+}
+
+func (t *testRepo[T, S]) Get(ctx context.Context, id S) (T, error) {
+	getCalled++
+	var zero T
+	return zero, nil
+}
+
+func (t *testRepo[T, S]) GetAll(ctx context.Context) ([]T, error) {
+	getAllCalled++
+	return nil, nil
+}
+
+func (t *testRepo[T, S]) Delete(ctx context.Context, e T) error {
+	deleteCalled++
+	return nil
+}
+
+func (t *testRepo[T, S]) Exists(ctx context.Context, id S) (bool, error) {
+	existsCalled++
+	return false, nil
+}
+
+func (t *testRepo[T, S]) GetId(ctx context.Context, e T) (S, error) {
+	getIdCalled++
+	var zero S
+	return zero, nil
+}
+
+type testTransport struct {
+}
+
+func (t *testTransport) PostEvent(e Event) error {
+	postEventCalled++
+	mockEvent = &e
+	return nil
+}
+
+func (t *testTransport) NextEvent() (*Event, error) {
+	nextEventCalled++
+	log.Printf("NextEvent called %d times %v", nextEventCalled, mockEvent)
+	return mockEvent, nil
+}
+
+func TestEventServiceCreate(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+	trans := &testTransport{}
+	// Create a new event service
+	es := NewEventService[string, int](repo, trans, "test")
+
+	// Create the event
+	err := es.Create(ctx, "event")
+	if err != nil {
+		t.Errorf("Error creating event: %v", err)
+	}
+
+	// Get the next event
+	nextEvent, err := es.NextEvent()
+	if err != nil {
+		t.Errorf("Error getting next event: %v", err)
+	}
+
+	if nextEvent.EventType != "testCreated" {
+		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
+	}
+
+	if nextEvent.EventData != "\"event\"" {
+		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
+	}
+
+	if nextEvent.EventVersion != 1 {
+		t.Errorf("Event version is not correct: %d", nextEvent.EventVersion)
+	}
+
+	if nextEvent.EventId != "1" {
+		t.Errorf("Event id is not correct: %s", nextEvent.EventId)
+	}
+
+	if postEventCalled != 1 {
+		t.Errorf("PostEvent was not called")
+	}
+
+	if nextEventCalled != 1 {
+		t.Errorf("NextEvent was not called")
+	}
+
+}
+func TestEventServiceDelete(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+	trans := &testTransport{}
+	// Create a new event service
+	es := NewEventService[string, int](repo, trans, "test")
+
+	// Create the event
+	err := es.Delete(ctx, "event")
+	if err != nil {
+		t.Errorf("Error deleting event: %v", err)
+	}
+
+	// Get the next event
+	nextEvent, err := es.NextEvent()
+	if err != nil {
+		t.Errorf("Error getting next event: %v", err)
+	}
+
+	if nextEvent.EventType != "testDeleted" {
+		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
+	}
+
+	if nextEvent.EventData != "\"event\"" {
+		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
+	}
+
+	if nextEvent.EventVersion != 1 {
+		t.Errorf("Event version is not correct: %d", nextEvent.EventVersion)
+	}
+
+	if nextEvent.EventId != "1" {
+		t.Errorf("Event id is not correct: %s", nextEvent.EventId)
+	}
+
+	if postEventCalled != 1 {
+		t.Errorf("PostEvent was not called")
+	}
+
+	if nextEventCalled != 1 {
+		t.Errorf("NextEvent was not called")
+	}
+
+}
+func TestEventServiceSave(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+	trans := &testTransport{}
+	// Create a new event service
+	es := NewEventService[string, int](repo, trans, "test")
+
+	// Create the event
+	err := es.Save(ctx, "event")
+	if err != nil {
+		t.Errorf("Error saving event: %v", err)
+	}
+
+	// Get the next event
+	nextEvent, err := es.NextEvent()
+	if err != nil {
+		t.Errorf("Error getting next event: %v", err)
+	}
+
+	if nextEvent.EventType != "testUpdated" {
+		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
+	}
+
+	if nextEvent.EventData != "\"event\"" {
+		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
+	}
+
+	if nextEvent.EventVersion != 1 {
+		t.Errorf("Event version is not correct: %d", nextEvent.EventVersion)
+	}
+
+	if nextEvent.EventId != "1" {
+		t.Errorf("Event id is not correct: %s", nextEvent.EventId)
+	}
+
+	if postEventCalled != 1 {
+		t.Errorf("PostEvent was not called")
+	}
+
+	if nextEventCalled != 1 {
+		t.Errorf("NextEvent was not called")
+	}
+
+}
+
+func TestEventServiceGetAll(t *testing.T) {
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+
+	trans := &testTransport{}
+	// Create a new event service
+	es := NewEventService[string, int](repo, trans, "test")
+
+	// Create the event
+	_, err := es.GetAll(ctx)
+	if err != nil {
+		t.Errorf("Error getting event: %v", err)
+	}
+	if getAllCalled == 0 {
+		t.Errorf("GetAll was not called")
+	}
+}
+func TestEventServiceGet(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+
+	trans := &testTransport{}
+	// Create a new event service
+	es := NewEventService[string, int](repo, trans, "test")
+
+	// Create the event
+	_, err := es.Get(ctx, 1)
+	if err != nil {
+		t.Errorf("Error getting event: %v", err)
+	}
+	if getCalled == 0 {
+		t.Errorf(`Get was not called`)
+	}
+}
