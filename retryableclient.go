@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"time"
@@ -52,6 +53,8 @@ func (t *retryableTransport) RoundTrip(req *http.Request) (*http.Response, error
 	// Retry logic
 	retries := 0
 	for shouldRetry(err, resp) && retries < t.retries {
+
+		slog.Info("Retrying request", "retries", retries, "maxRetries", t.retries, "error", err, "statusCode", resp.StatusCode, "url", req.URL)
 		// Wait for the specified backoff period
 		time.Sleep(backoff(retries))
 		// We're going to retry, consume any response to reuse the connection.

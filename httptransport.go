@@ -17,6 +17,7 @@ type HttpTransport struct {
 	streamUri      string
 	scanner        *bufio.Scanner
 	defaultRetries int
+	connected      bool
 }
 
 func (ht *HttpTransport) PostEvent(event Event) error {
@@ -117,6 +118,8 @@ func (ht *HttpTransport) Connect() error {
 
 	ht.scanner = bufio.NewScanner(resp.Body)
 
+	ht.connected = true
+
 	return nil
 }
 func NewHttpTransport(postUri, streamUri string, retries int) *HttpTransport {
@@ -125,5 +128,6 @@ func NewHttpTransport(postUri, streamUri string, retries int) *HttpTransport {
 		postUri:        postUri,
 		streamUri:      streamUri,
 		defaultRetries: retries,
+		connected:      false,
 	}
 }
