@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"testing"
+	"time"
 )
 
 var (
@@ -65,6 +66,10 @@ func (t *testRepo[T, S]) GetId(ctx context.Context, e T) (S, error) {
 }
 
 type testTransport struct {
+}
+
+func (t *testTransport) Connect() error {
+	return nil
 }
 
 func (t *testTransport) PostEvent(e Event) error {
@@ -433,5 +438,84 @@ func TestEventServiceGet(t *testing.T) {
 	}
 	if getCalled == 0 {
 		t.Errorf(`Get was not called`)
+	}
+}
+
+func TestEventServiceExists(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+	existsCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+
+	es := NewEventService[string, int](repo, &testTransport{}, "test")
+
+	_, err := es.Exists(ctx, 1)
+	if err != nil {
+		t.Errorf("Error getting event: %v", err)
+	}
+
+	if existsCalled == 0 {
+		t.Errorf("Exists was not called")
+	}
+}
+
+func TestEventServiceGetId(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+	getIdCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{t: t}
+
+	es := NewEventService[string, int](repo, &testTransport{}, "test")
+
+	_, err := es.GetId(ctx, "event")
+
+	if err != nil {
+		t.Errorf("Error getting event: %v", err)
+	}
+
+	if getIdCalled == 0 {
+		t.Errorf("GetId was not called")
+	}
+}
+
+func TestEventStartEventRunner(t *testing.T) {
+	postEventCalled = 0
+	nextEventCalled = 0
+	getIdCalled = 0
+	existsCalled = 0
+	createCalled = 0
+	saveCalled = 0
+	getCalled = 0
+	getAllCalled = 0
+	deleteCalled = 0
+
+	ctx := context.Background()
+	// Create a new test repository
+	repo := &testRepo[string, int]{
+		t: t,
+	}
+
+	es := NewEventService[string, int](repo, &testTransport{}, "test")
+
+	newCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	es.StartEventRunner(newCtx)
+
+	for {
+		select {
+		case <-newCtx.Done():
+			t.Log("Event runner stopped")
+			return
+		case <-time.After(2 * time.Second):
+		}
 	}
 }

@@ -3,21 +3,26 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 )
 
 type HttpTransport struct {
+	ctx            context.Context
 	lastId         string
 	postUri        string
 	streamUri      string
 	scanner        *bufio.Scanner
 	defaultRetries int
 	connected      bool
+	body           io.ReadCloser
 }
 
 func (ht *HttpTransport) PostEvent(event Event) error {
@@ -74,24 +79,34 @@ func (ht *HttpTransport) NextEvent() (*Event, error) {
 
 	for ht.scanner.Scan() {
 
-		e := ht.scanner.Text()
-		switch {
-		case strings.HasPrefix(e, "event: "):
-			log.Printf("Event: %s\n", strings.TrimLeft(e, "event: "))
-		case strings.HasPrefix(e, "data: "):
-			log.Printf("Data: %s\n", strings.TrimLeft(e, "data: "))
-			event = decodeEvent(strings.TrimLeft(e, "data: "))
-		case strings.HasPrefix(e, "id: "):
-			log.Printf("Id: %s\n", strings.TrimLeft(e, "id: "))
-			ht.lastId = strings.TrimLeft(e, "id: ")
+		select {
+		case <-ht.ctx.Done():
+			ht.body.Close()
+			return nil, nil
 		default:
-			break
+			e := ht.scanner.Text()
+			switch {
+			case strings.HasPrefix(e, "event: "):
+				log.Printf("Event: %s\n", strings.TrimLeft(e, "event: "))
+			case strings.HasPrefix(e, "data: "):
+				log.Printf("Data: %s\n", strings.TrimLeft(e, "data: "))
+				event = decodeEvent(strings.TrimLeft(e, "data: "))
+			case strings.HasPrefix(e, "id: "):
+				log.Printf("Id: %s\n", strings.TrimLeft(e, "id: "))
+				ht.lastId = strings.TrimLeft(e, "id: ")
+			default:
+				break
+			}
 		}
 	}
 	return &event, nil
 }
 
-func (ht *HttpTransport) Connect() error {
+func (ht *HttpTransport) Connect(ctx context.Context) error {
+
+	slog.Info("Connecting to event stream", "URI", ht.streamUri)
+
+	ht.ctx = ctx
 
 	client := NewRetryableClient(ht.defaultRetries)
 
@@ -110,15 +125,17 @@ func (ht *HttpTransport) Connect() error {
 		log.Fatalf("Error connecting to event stream: %v", err)
 	}
 
-	//defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("Error: status code %d", resp.StatusCode)
 	}
 
+	slog.Info("Connected to event stream", "URI", req.URL)
+
 	ht.scanner = bufio.NewScanner(resp.Body)
 
 	ht.connected = true
+
+	ht.body = resp.Body
 
 	return nil
 }

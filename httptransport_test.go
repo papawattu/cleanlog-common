@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -84,7 +85,7 @@ func TestHttpTransportNextEvent(t *testing.T) {
 
 	// Create a new Event
 
-	err := ht.Connect()
+	err := ht.Connect(context.Background())
 
 	if err != nil {
 		t.Fatalf("Error connecting: %v", err)

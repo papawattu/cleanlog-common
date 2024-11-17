@@ -29,6 +29,7 @@ type EventHandler func(event Event) error
 type EventHandlers map[string]EventHandler
 
 type Transport interface {
+	Connect() error
 	PostEvent(event Event) error
 	NextEvent() (*Event, error)
 }
@@ -38,6 +39,7 @@ type EventService[T any, S comparable] interface {
 	SetPrefix(prefix string)
 	SetHandlers(handlers EventHandlers)
 	HandleEvent(event Event) error
+	StartEventRunner(ctx context.Context)
 }
 
 type EventServiceImpl[T any, S comparable] struct {
@@ -181,6 +183,32 @@ func (es *EventServiceImpl[T, S]) HandleEvent(event Event) error {
 		return nil
 	}
 	return handler(event)
+}
+
+func (es *EventServiceImpl[T, S]) StartEventRunner(ctx context.Context) {
+	go func() {
+
+		err := es.Connect()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				ev, err := es.NextEvent()
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if ev != nil {
+					es.HandleEvent(*ev)
+				}
+			}
+		}
+	}()
 }
 func NewEventService[T any, S comparable](repo Repository[T, S], transport Transport, prefix string) EventService[T, S] {
 
