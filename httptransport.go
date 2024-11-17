@@ -91,6 +91,7 @@ func (ht *HttpTransport) NextEvent() (*Event, error) {
 			case strings.HasPrefix(e, "data: "):
 				log.Printf("Data: %s\n", strings.TrimLeft(e, "data: "))
 				event = decodeEvent(strings.TrimLeft(e, "data: "))
+				return &event, nil
 			case strings.HasPrefix(e, "id: "):
 				log.Printf("Id: %s\n", strings.TrimLeft(e, "id: "))
 				ht.lastId = strings.TrimLeft(e, "id: ")
