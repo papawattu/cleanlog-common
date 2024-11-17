@@ -29,8 +29,8 @@ type EventHandler func(event Event) error
 type EventHandlers map[string]EventHandler
 
 type Transport interface {
-	Connect() error
-	PostEvent(event Event) error
+	Connect(context.Context) error
+	PostEvent(Event) error
 	NextEvent() (*Event, error)
 }
 type EventService[T any, S comparable] interface {
