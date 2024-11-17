@@ -68,7 +68,7 @@ func (t *testRepo[T, S]) GetId(ctx context.Context, e T) (S, error) {
 type testTransport struct {
 }
 
-func (t *testTransport) Connect() error {
+func (t *testTransport) Connect(context.Context) error {
 	return nil
 }
 

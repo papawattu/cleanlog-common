@@ -188,7 +188,7 @@ func (es *EventServiceImpl[T, S]) HandleEvent(event Event) error {
 func (es *EventServiceImpl[T, S]) StartEventRunner(ctx context.Context) {
 	go func() {
 
-		err := es.Connect()
+		err := es.Connect(ctx)
 
 		if err != nil {
 			log.Fatal(err)
