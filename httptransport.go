@@ -87,13 +87,13 @@ func (ht *HttpTransport) NextEvent() (*Event, error) {
 			e := ht.scanner.Text()
 			switch {
 			case strings.HasPrefix(e, "event: "):
-				log.Printf("Event: %s\n", strings.TrimLeft(e, "event: "))
+				slog.Debug("Event Type", "Type", strings.TrimLeft(e, "event: "))
 			case strings.HasPrefix(e, "data: "):
-				log.Printf("Data: %s\n", strings.TrimLeft(e, "data: "))
+				slog.Debug("Event Data", "Data", strings.TrimLeft(e, "data: "))
 				event = decodeEvent(strings.TrimLeft(e, "data: "))
 				return &event, nil
 			case strings.HasPrefix(e, "id: "):
-				log.Printf("Id: %s\n", strings.TrimLeft(e, "id: "))
+				slog.Debug("Event Id", "Id", strings.TrimLeft(e, "id: "))
 				ht.lastId = strings.TrimLeft(e, "id: ")
 			default:
 				break
