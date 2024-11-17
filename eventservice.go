@@ -178,6 +178,7 @@ func decodeEntity[T any](data string) T {
 }
 
 func (es *EventServiceImpl[T, S]) HandleEvent(event Event) error {
+	slog.Info("EventService", "HandleEvent", event, "EventType", event.EventType)
 	handler, ok := es.Handlers[event.EventType]
 	if !ok {
 		return nil
@@ -222,22 +223,9 @@ func NewEventService[T any, S comparable](repo Repository[T, S], transport Trans
 
 	handlers[prefix+Created] = func(event Event) error {
 
+		slog.Info("EventService", "Create", event.EventData)
+
 		var e T = decodeEntity[T](event.EventData)
-
-		id, err := repo.GetId(context.Background(), e)
-
-		if err != nil {
-			slog.Error("Error getting ID", "error", err)
-		}
-		exists, err := repo.Exists(context.Background(), id)
-		if err != nil {
-			slog.Error("Error checking if ID exists", "error", err)
-		}
-
-		if exists {
-			slog.Info("EventService", "Create", "Entity already exists")
-			return nil
-		}
 
 		repo.Create(context.Background(), e)
 		return nil
@@ -245,29 +233,17 @@ func NewEventService[T any, S comparable](repo Repository[T, S], transport Trans
 
 	handlers[prefix+Updated] = func(event Event) error {
 
+		slog.Info("EventService", "Update", event.EventData)
+
 		var e T = decodeEntity[T](event.EventData)
-
-		id, err := repo.GetId(context.Background(), e)
-
-		if err != nil {
-			slog.Error("Error getting ID", "error", err)
-		}
-		exists, err := repo.Exists(context.Background(), id)
-
-		if err != nil {
-			slog.Error("Error checking if entity exists", "error", err)
-		}
-
-		if !exists {
-			slog.Info("EventService", "Update", "Entity does not exist")
-			return nil
-		}
 
 		repo.Save(context.Background(), e)
 		return nil
 	}
 
 	handlers[prefix+Deleted] = func(event Event) error {
+
+		slog.Info("EventService", "Delete", event.EventData)
 
 		var e T = decodeEntity[T](event.EventData)
 

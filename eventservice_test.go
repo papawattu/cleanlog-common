@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"log"
 	"testing"
 	"time"
 )
@@ -80,7 +79,6 @@ func (t *testTransport) PostEvent(e Event) error {
 
 func (t *testTransport) NextEvent() (*Event, error) {
 	nextEventCalled++
-	log.Printf("NextEvent called %d times %v", nextEventCalled, mockEvent)
 	return mockEvent, nil
 }
 
@@ -144,69 +142,6 @@ func TestEventServiceCreate(t *testing.T) {
 
 	if createCalled != 1 {
 		t.Errorf("Create was not called")
-	}
-
-}
-func TestEventServiceCreateAlreadyExists(t *testing.T) {
-	createCalled = 0
-	postEventCalled = 0
-	nextEventCalled = 0
-
-	existsReturnValue = true
-
-	ctx := context.Background()
-	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
-	trans := &testTransport{}
-	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
-
-	// Create the event
-	err := es.Create(ctx, "event")
-	if err != nil {
-		t.Errorf("Error creating event: %v", err)
-	}
-
-	// Get the next event
-	nextEvent, err := es.NextEvent()
-	if err != nil {
-		t.Errorf("Error getting next event: %v", err)
-	}
-
-	if nextEvent.EventType != "testCreated" {
-		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
-	}
-
-	if nextEvent.EventData != "\"event\"" {
-		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
-	}
-
-	if nextEvent.EventVersion != 1 {
-		t.Errorf("Event version is not correct: %d", nextEvent.EventVersion)
-	}
-
-	if nextEvent.EventId != "1" {
-		t.Errorf("Event id is not correct: %s", nextEvent.EventId)
-	}
-
-	if postEventCalled != 1 {
-		t.Errorf("PostEvent was not called")
-	}
-
-	if nextEventCalled != 1 {
-		t.Errorf("NextEvent was not called")
-	}
-
-	err = es.HandleEvent(*nextEvent)
-
-	if err != nil {
-		t.Errorf("Error handling event: %v", err)
-	}
-
-	if createCalled != 0 {
-		t.Errorf("Create was called, should not have been as entity already exists")
 	}
 
 }
@@ -332,70 +267,6 @@ func TestEventServiceSave(t *testing.T) {
 		t.Errorf("Save was not called")
 	}
 }
-
-func TestEventServiceSaveWhenNotExists(t *testing.T) {
-	saveCalled = 0
-	postEventCalled = 0
-	nextEventCalled = 0
-	existsReturnValue = false
-
-	ctx := context.Background()
-	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
-	trans := &testTransport{}
-	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
-
-	// Create the event
-	err := es.Save(ctx, "event")
-	if err != nil {
-		t.Errorf("Error saving event: %v", err)
-	}
-
-	// Get the next event
-	nextEvent, err := es.NextEvent()
-	if err != nil {
-		t.Errorf("Error getting next event: %v", err)
-	}
-
-	if nextEvent.EventType != "testUpdated" {
-		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
-	}
-
-	if nextEvent.EventData != "\"event\"" {
-		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
-	}
-
-	if nextEvent.EventVersion != 1 {
-		t.Errorf("Event version is not correct: %d", nextEvent.EventVersion)
-	}
-
-	if nextEvent.EventId != "1" {
-		t.Errorf("Event id is not correct: %s", nextEvent.EventId)
-	}
-
-	if postEventCalled != 1 {
-		t.Errorf("PostEvent was not called")
-	}
-
-	if nextEventCalled != 1 {
-		t.Errorf("NextEvent was not called")
-	}
-
-	err = es.HandleEvent(*nextEvent)
-
-	if err != nil {
-		t.Errorf("Error handling event: %v", err)
-	}
-
-	if saveCalled != 0 {
-		t.Errorf("Save should not be called")
-	}
-
-}
-
 func TestEventServiceGetAll(t *testing.T) {
 
 	ctx := context.Background()
