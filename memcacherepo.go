@@ -20,6 +20,7 @@ type MemcacheClient interface {
 type MemcacheRepository[T Entity[S], S string] struct {
 	client MemcacheClient
 	host   string
+	prefix string
 }
 
 func (mr MemcacheRepository[T, S]) Create(ctx context.Context, e T) error {
@@ -41,15 +42,15 @@ func (mr MemcacheRepository[T, S]) Create(ctx context.Context, e T) error {
 	h := sha256.New()
 
 	h.Write(b.Bytes())
-
 	err = mr.client.Set(&memcache.Item{
-		Key:   string(id),
+		Key:   mr.prefix + string(id),
 		Value: b.Bytes(),
 		Flags: 0,
 	})
 	if err != nil {
 		return err
 	}
+
 	log.Printf("Created entity with id: %s val: %+v", id, e)
 	return nil
 }
@@ -67,7 +68,7 @@ func (mr *MemcacheRepository[T, S]) Save(ctx context.Context, e T) error {
 		return err
 	}
 	mr.client.Set(&memcache.Item{
-		Key:   string(id),
+		Key:   mr.prefix + string(id),
 		Value: b.Bytes(),
 	})
 	return nil
@@ -77,9 +78,9 @@ func (mr *MemcacheRepository[T, S]) Get(ctx context.Context, id S) (T, error) {
 
 	var entity T
 
-	item, err := mr.client.Get(string(id))
+	item, err := mr.client.Get(mr.prefix + string(id))
 	if err != nil {
-		var entity T
+
 		return entity, err
 	}
 
@@ -104,7 +105,7 @@ func (mr *MemcacheRepository[T, S]) Delete(ctx context.Context, e T) error {
 		return err
 	}
 
-	mr.client.Delete(string(id))
+	mr.client.Delete(mr.prefix + string(id))
 
 	return nil
 }
@@ -138,11 +139,13 @@ func (mr *MemcacheRepository[T, S]) GetClient() MemcacheClient {
 	return mr.client
 }
 
-func NewMemcacheRepository[T Entity[S], S string](host string, mc MemcacheClient) Repository[T, S] {
+func NewMemcacheRepository[T Entity[S], S string](host string, prefix string, mc MemcacheClient) Repository[T, S] {
 	if mc == nil {
 		mc = memcache.New(host)
 	}
 	return &MemcacheRepository[T, S]{
 		client: mc,
+		host:   host,
+		prefix: prefix,
 	}
 }
