@@ -11,8 +11,14 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
+type MemcacheClient interface {
+	Set(item *memcache.Item) error
+	Get(key string) (*memcache.Item, error)
+	Delete(key string) error
+}
+
 type MemcacheRepository[T Entity[S], S string] struct {
-	client *memcache.Client
+	client MemcacheClient
 	host   string
 }
 
@@ -77,6 +83,10 @@ func (mr *MemcacheRepository[T, S]) Get(ctx context.Context, id S) (T, error) {
 		return entity, err
 	}
 
+	if item == nil {
+		return entity, errors.New("entity not found")
+	}
+
 	dec := gob.NewDecoder(bytes.NewReader(item.Value))
 	err = dec.Decode(&entity)
 	if err != nil {
@@ -119,17 +129,20 @@ func (mr *MemcacheRepository[T, S]) GetHost() string {
 	return mr.host
 }
 
-func (mr *MemcacheRepository[T, S]) SetClient(client *memcache.Client) error {
+func (mr *MemcacheRepository[T, S]) SetClient(client MemcacheClient) error {
 	mr.client = client
 	return nil
 }
 
-func (mr *MemcacheRepository[T, S]) GetClient() *memcache.Client {
+func (mr *MemcacheRepository[T, S]) GetClient() MemcacheClient {
 	return mr.client
 }
 
-func NewMemcacheRepository[T Entity[S], S string](host string) Repository[T, S] {
+func NewMemcacheRepository[T Entity[S], S string](host string, mc MemcacheClient) Repository[T, S] {
+	if mc == nil {
+		mc = memcache.New(host)
+	}
 	return &MemcacheRepository[T, S]{
-		client: memcache.New(host),
+		client: mc,
 	}
 }

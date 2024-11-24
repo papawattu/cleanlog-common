@@ -4,12 +4,40 @@ import (
 	"context"
 	"testing"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	common "github.com/papawattu/cleanlog-common"
 )
 
+type MockMemcacheClient struct {
+	store map[string][]byte
+}
+
+func (m *MockMemcacheClient) Set(item *memcache.Item) error {
+	m.store[item.Key] = item.Value
+	return nil
+}
+
+func (m *MockMemcacheClient) Get(key string) (*memcache.Item, error) {
+	if val, ok := m.store[key]; ok {
+		return &memcache.Item{
+			Key:   key,
+			Value: val,
+			Flags: 0,
+		}, nil
+	}
+	return nil, nil
+}
+
+func (m *MockMemcacheClient) Delete(key string) error {
+	delete(m.store, key)
+	return nil
+}
 func TestMemcacheRepository(t *testing.T) {
 	// Create a new MemcacheRepository
-	mr := common.NewMemcacheRepository[*common.BaseEntity[string], string]("localhost:11211")
+
+	mr := common.NewMemcacheRepository[*common.BaseEntity[string]]("localhost:11211", &MockMemcacheClient{
+		store: make(map[string][]byte),
+	})
 
 	// Create a new context
 	ctx := context.Background()
