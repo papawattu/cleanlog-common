@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 )
 
@@ -14,7 +13,6 @@ type Entity[S comparable] interface {
 	SetVersion(v int)
 	SetLastUpdateDate(t time.Time)
 	SetCreationDate(t time.Time)
-	DecodeFromJSON([]byte) error
 }
 
 type Repository[T Entity[S], S comparable] interface {
@@ -62,26 +60,6 @@ func (b *BaseEntity[S]) SetCreationDate(t time.Time) {
 	b.CreationDate = t
 }
 
-func (b *BaseEntity[S]) DecodeFromJSON(data []byte) error {
-	//var be BaseEntity[S]
-
-	err := json.Unmarshal(data, b)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func NewBaseEntity[S comparable](id S) Entity[S] {
 	return &BaseEntity[S]{ID: id, LastUpdateDate: time.Now(), CreationDate: time.Now(), Version: 1}
-}
-
-func NewBaseEntityFromJson[S comparable](data []byte) Entity[S] {
-	var be BaseEntity[S]
-
-	err := json.Unmarshal(data, &be)
-	if err != nil {
-		return nil
-	}
-	return &be
 }
