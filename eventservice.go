@@ -16,12 +16,12 @@ const (
 )
 
 type Event struct {
-	EventId      string
-	EventSHA     string
-	EventType    string
-	EventData    string
-	EventVersion int
-	EventTime    time.Time
+	EventId      string    `json:"eventId"`
+	EventSHA     string    `json:"eventSHA"`
+	EventType    string    `json:"eventType"`
+	EventData    string    `json:"eventData"`
+	EventVersion int       `json:"eventVersion"`
+	EventTime    time.Time `json:"eventTime"`
 }
 
 type EventHandler func(event Event) error
@@ -33,7 +33,7 @@ type Transport interface {
 	PostEvent(Event) error
 	NextEvent() (*Event, error)
 }
-type EventService[T any, S comparable] interface {
+type EventService[T Entity[S], S comparable] interface {
 	Repository[T, S]
 	Transport
 	SetPrefix(prefix string)
@@ -42,7 +42,7 @@ type EventService[T any, S comparable] interface {
 	StartEventRunner(ctx context.Context)
 }
 
-type EventServiceImpl[T any, S comparable] struct {
+type EventServiceImpl[T Entity[S], S comparable] struct {
 	Repository[T, S]
 	Transport
 	Prefix   string
@@ -168,13 +168,15 @@ func (es *EventServiceImpl[T, S]) GetAll(ctx context.Context) ([]T, error) {
 	return es.Repository.GetAll(ctx)
 }
 
-func decodeEntity[T any](data string) T {
-	var wl T
-	err := json.Unmarshal([]byte(data), &wl)
+func (es *EventServiceImpl[T, S]) decodeEntity(data string) T {
+
+	var e T
+	err := json.Unmarshal([]byte(data), &e)
 	if err != nil {
-		log.Fatalf("Error decoding work log: %v", err)
+		log.Fatal(err)
 	}
-	return wl
+
+	return e
 }
 
 func (es *EventServiceImpl[T, S]) HandleEvent(event Event) error {
@@ -211,7 +213,7 @@ func (es *EventServiceImpl[T, S]) StartEventRunner(ctx context.Context) {
 		}
 	}()
 }
-func NewEventService[T any, S comparable](repo Repository[T, S], transport Transport, prefix string) EventService[T, S] {
+func NewEventService[T Entity[S], S comparable](repo Repository[T, S], transport Transport, prefix string) EventService[T, S] {
 
 	es := EventServiceImpl[T, S]{
 		Repository: repo,
@@ -225,7 +227,7 @@ func NewEventService[T any, S comparable](repo Repository[T, S], transport Trans
 
 		slog.Info("EventService", "Create", event.EventData)
 
-		var e T = decodeEntity[T](event.EventData)
+		var e T = es.decodeEntity(event.EventData)
 
 		repo.Create(context.Background(), e)
 		return nil
@@ -235,7 +237,7 @@ func NewEventService[T any, S comparable](repo Repository[T, S], transport Trans
 
 		slog.Info("EventService", "Update", event.EventData)
 
-		var e T = decodeEntity[T](event.EventData)
+		var e T = es.decodeEntity(event.EventData)
 
 		repo.Save(context.Background(), e)
 		return nil
@@ -245,7 +247,7 @@ func NewEventService[T any, S comparable](repo Repository[T, S], transport Trans
 
 		slog.Info("EventService", "Delete", event.EventData)
 
-		var e T = decodeEntity[T](event.EventData)
+		var e T = es.decodeEntity(event.EventData)
 
 		repo.Delete(context.Background(), e)
 		return nil

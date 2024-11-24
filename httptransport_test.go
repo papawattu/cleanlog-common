@@ -1,4 +1,4 @@
-package common
+package common_test
 
 import (
 	"context"
@@ -7,12 +7,14 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	common "github.com/papawattu/cleanlog-common"
 )
 
 func TestHttpTransportPostEvent(t *testing.T) {
 	t.Log("Testing HttpTransport")
 
-	var event Event
+	var event common.Event
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
@@ -32,13 +34,13 @@ func TestHttpTransportPostEvent(t *testing.T) {
 	defer server.Close()
 
 	// Create a new HttpTransport
-	ht := NewHttpTransport(server.URL, "http://localhost:8080", 1)
+	ht := common.NewHttpTransport(server.URL, "http://localhost:8080", 1)
 
 	// Create a new Event
 
 	tm := time.Now()
 
-	ht.PostEvent(Event{
+	ht.PostEvent(common.Event{
 		EventType:    "test",
 		EventTime:    tm,
 		EventVersion: 1,
@@ -81,7 +83,7 @@ func TestHttpTransportNextEvent(t *testing.T) {
 	defer server.Close()
 
 	// Create a new HttpTransport
-	ht := NewHttpTransport("", server.URL, 1)
+	ht := common.NewHttpTransport("", server.URL, 1)
 
 	// Create a new Event
 

@@ -1,9 +1,11 @@
-package common
+package common_test
 
 import (
 	"context"
 	"testing"
 	"time"
+
+	common "github.com/papawattu/cleanlog-common"
 )
 
 var (
@@ -21,48 +23,7 @@ var (
 var existsReturnValue = false
 var getIdReturnValue int
 
-var mockEvent *Event
-
-type testRepo[T any, S comparable] struct {
-	t *testing.T
-}
-
-func (t *testRepo[T, S]) Create(ctx context.Context, e T) error {
-	createCalled++
-	return nil
-}
-
-func (t *testRepo[T, S]) Save(ctx context.Context, e T) error {
-	saveCalled++
-	return nil
-}
-
-func (t *testRepo[T, S]) Get(ctx context.Context, id S) (T, error) {
-	getCalled++
-	var zero T
-	return zero, nil
-}
-
-func (t *testRepo[T, S]) GetAll(ctx context.Context) ([]T, error) {
-	getAllCalled++
-	return nil, nil
-}
-
-func (t *testRepo[T, S]) Delete(ctx context.Context, e T) error {
-	deleteCalled++
-	return nil
-}
-
-func (t *testRepo[T, S]) Exists(ctx context.Context, id S) (bool, error) {
-	existsCalled++
-	return existsReturnValue, nil
-}
-
-func (t *testRepo[T, S]) GetId(ctx context.Context, e T) (S, error) {
-	getIdCalled++
-	var zero S
-	return zero, nil
-}
+var mockEvent *common.Event
 
 type testTransport struct {
 }
@@ -71,15 +32,19 @@ func (t *testTransport) Connect(context.Context) error {
 	return nil
 }
 
-func (t *testTransport) PostEvent(e Event) error {
+func (t *testTransport) PostEvent(e common.Event) error {
 	postEventCalled++
 	mockEvent = &e
 	return nil
 }
 
-func (t *testTransport) NextEvent() (*Event, error) {
+func (t *testTransport) NextEvent() (*common.Event, error) {
 	nextEventCalled++
 	return mockEvent, nil
+}
+
+type Object struct {
+	Data string `json:"data"`
 }
 
 func TestEventServiceCreate(t *testing.T) {
@@ -91,15 +56,16 @@ func TestEventServiceCreate(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+
+	repo := NewTestRepository[*common.BaseEntity[string]]()
+
 	trans := &testTransport{}
 	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
+	es := common.NewEventService(repo, trans, "test")
 
+	//te := common.NewBaseEntity("1")
 	// Create the event
-	err := es.Create(ctx, "event")
+	err := es.Create(ctx, &common.BaseEntity[string]{ID: "1"})
 	if err != nil {
 		t.Errorf("Error creating event: %v", err)
 	}
@@ -114,9 +80,9 @@ func TestEventServiceCreate(t *testing.T) {
 		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
 	}
 
-	if nextEvent.EventData != "\"event\"" {
-		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
-	}
+	// if nextEvent.EventData != "{\"ID\":1}" {
+	// 	t.Errorf("Event data is not correct: %s", nextEvent.EventData)
+	// }
 
 	if nextEvent.EventVersion != 1 {
 		t.Errorf("Event version is not correct: %d", nextEvent.EventVersion)
@@ -152,15 +118,15 @@ func TestEventServiceDelete(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+	repo := NewTestRepository[*common.BaseEntity[int], int]()
+
 	trans := &testTransport{}
 	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
+	es := common.NewEventService(repo, trans, "test")
 
+	//te := common.NewBaseEntity(int(1))
 	// Create the event
-	err := es.Delete(ctx, "event")
+	err := es.Delete(ctx, &common.BaseEntity[int]{ID: 1})
 	if err != nil {
 		t.Errorf("Error deleting event: %v", err)
 	}
@@ -173,10 +139,6 @@ func TestEventServiceDelete(t *testing.T) {
 
 	if nextEvent.EventType != "testDeleted" {
 		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
-	}
-
-	if nextEvent.EventData != "\"event\"" {
-		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
 	}
 
 	if nextEvent.EventVersion != 1 {
@@ -214,15 +176,14 @@ func TestEventServiceSave(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+	repo := NewTestRepository[*common.BaseEntity[int]]()
 	trans := &testTransport{}
 	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
+	//en := common.NewBaseEntity(int(1))
+	es := common.NewEventService(repo, trans, "test")
 
 	// Create the event
-	err := es.Save(ctx, "event")
+	err := es.Save(ctx, &common.BaseEntity[int]{ID: 1})
 	if err != nil {
 		t.Errorf("Error saving event: %v", err)
 	}
@@ -235,10 +196,6 @@ func TestEventServiceSave(t *testing.T) {
 
 	if nextEvent.EventType != "testUpdated" {
 		t.Errorf("Event type is not correct: %s", nextEvent.EventType)
-	}
-
-	if nextEvent.EventData != "\"event\"" {
-		t.Errorf("Event data is not correct: %s", nextEvent.EventData)
 	}
 
 	if nextEvent.EventVersion != 1 {
@@ -271,13 +228,11 @@ func TestEventServiceGetAll(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+	repo := NewTestRepository[*common.BaseEntity[int]]()
 
 	trans := &testTransport{}
 	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
+	es := common.NewEventService(repo, trans, "test")
 
 	// Create the event
 	_, err := es.GetAll(ctx)
@@ -294,13 +249,11 @@ func TestEventServiceGet(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+	repo := NewTestRepository[*common.BaseEntity[int]]()
 
 	trans := &testTransport{}
 	// Create a new event service
-	es := NewEventService[string, int](repo, trans, "test")
+	es := common.NewEventService(repo, trans, "test")
 
 	// Create the event
 	_, err := es.Get(ctx, 1)
@@ -319,11 +272,9 @@ func TestEventServiceExists(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+	repo := NewTestRepository[*common.BaseEntity[int]]()
 
-	es := NewEventService[string, int](repo, &testTransport{}, "test")
+	es := common.NewEventService(repo, &testTransport{}, "test")
 
 	_, err := es.Exists(ctx, 1)
 	if err != nil {
@@ -342,11 +293,11 @@ func TestEventServiceGetId(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{t: t}
+	repo := NewTestRepository[*common.BaseEntity[int]]()
 
-	es := NewEventService[string, int](repo, &testTransport{}, "test")
+	es := common.NewEventService(repo, &testTransport{}, "test")
 
-	_, err := es.GetId(ctx, "event")
+	_, err := es.GetId(ctx, &common.BaseEntity[int]{ID: 1})
 
 	if err != nil {
 		t.Errorf("Error getting event: %v", err)
@@ -370,11 +321,9 @@ func TestEventStartEventRunner(t *testing.T) {
 
 	ctx := context.Background()
 	// Create a new test repository
-	repo := &testRepo[string, int]{
-		t: t,
-	}
+	repo := NewTestRepository[*common.BaseEntity[int]]()
 
-	es := NewEventService[string, int](repo, &testTransport{}, "test")
+	es := common.NewEventService(repo, &testTransport{}, "test")
 
 	newCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()

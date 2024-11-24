@@ -7,37 +7,36 @@ import (
 	common "github.com/papawattu/cleanlog-common"
 )
 
-func TestMemcacheRepository(t *testing.T) {
-	// Create a new MemcacheRepository
-	mr := common.NewMemcacheRepository[*common.BaseEntity[string], string]("localhost:11211")
+func TestInMemoryRepo(t *testing.T) {
+	// Create a new InMemoryRepository
+	repo := common.NewInMemoryRepository[*common.BaseEntity[int]]()
 
 	// Create a new context
 	ctx := context.Background()
 
 	// Create a new entity
 
-	err := mr.Create(ctx, &common.BaseEntity[string]{
-		ID: "1",
-	})
+	// Test Create
+
+	te := common.NewBaseEntity(1)
+	err := repo.Create(ctx, te.(*common.BaseEntity[int]))
 
 	if err != nil {
 		t.Errorf("Error creating entity: %v", err)
 	}
 
 	// Test Get
-	id, err := mr.GetId(context.Background(), &common.BaseEntity[string]{
-		ID: "1",
-	})
+	id, err := repo.GetId(context.Background(), te.(*common.BaseEntity[int]))
 	if err != nil {
 		t.Errorf("Error getting entity id: %v", err)
 	}
-	_, err = mr.Get(ctx, id)
+	_, err = repo.Get(ctx, id)
 	if err != nil {
 		t.Errorf("Error getting entity: %v", err)
 	}
 
 	// Test Exists
-	e, err := mr.Exists(ctx, id)
+	e, err := repo.Exists(ctx, id)
 	if err != nil {
 		t.Errorf("Error checking if entity exists: %v", err)
 	}
@@ -47,26 +46,16 @@ func TestMemcacheRepository(t *testing.T) {
 	}
 
 	// Test Delete
-	err = mr.Delete(ctx, &common.BaseEntity[string]{
-		ID: "1",
-	})
+	err = repo.Delete(ctx, te.(*common.BaseEntity[int]))
 	if err != nil {
 		t.Errorf("Error deleting entity: %v", err)
 	}
-	e, err = mr.Exists(ctx, id)
+	e, err = repo.Exists(ctx, id)
 	if err != nil {
 		t.Errorf("Error checking if entity exists: %v", err)
 	}
 
 	if e {
 		t.Errorf("Entity should not exist")
-	}
-	// Test GetId
-
-	_, err = mr.GetId(ctx, &common.BaseEntity[string]{
-		ID: "1",
-	})
-	if err != nil {
-		t.Errorf("Error getting entity id: %v", err)
 	}
 }

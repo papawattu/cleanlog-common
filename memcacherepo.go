@@ -6,26 +6,28 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
-type MemcacheRepository[T any, S string] struct {
+type MemcacheRepository[T Entity[S], S string] struct {
 	client *memcache.Client
 	host   string
 }
 
-func (mr *MemcacheRepository[T, S]) Create(ctx context.Context, entity T) error {
+func (mr MemcacheRepository[T, S]) Create(ctx context.Context, e T) error {
 
-	id, err := mr.GetId(ctx, entity)
-	if err != nil {
-		return err
+	id := e.GetID()
+
+	if _, err := mr.Get(ctx, id); err == nil {
+		return errors.New("entity already exists")
 	}
+
 	var b bytes.Buffer
 	enc := gob.NewEncoder(&b)
-	err = enc.Encode(entity)
+
+	err := enc.Encode(e)
 	if err != nil {
 		return err
 	}
@@ -42,18 +44,19 @@ func (mr *MemcacheRepository[T, S]) Create(ctx context.Context, entity T) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("Created entity with id: %v val: %v", id, entity)
+	log.Printf("Created entity with id: %s val: %+v", id, e)
 	return nil
 }
-func (mr *MemcacheRepository[T, S]) Save(ctx context.Context, entity T) error {
-	id, err := mr.GetId(ctx, entity)
-	if err != nil {
-		return err
+func (mr *MemcacheRepository[T, S]) Save(ctx context.Context, e T) error {
+	id := e.GetID()
+
+	if _, err := mr.Get(ctx, id); err != nil {
+		return errors.New("entity not found")
 	}
 
 	var b bytes.Buffer
 	enc := gob.NewEncoder(&b)
-	err = enc.Encode(entity)
+	err := enc.Encode(e)
 	if err != nil {
 		return err
 	}
@@ -103,20 +106,8 @@ func (mr *MemcacheRepository[T, S]) Exists(ctx context.Context, ID S) (bool, err
 	return true, nil
 }
 
-func (mr *MemcacheRepository[T, S]) GetId(ctx context.Context, entity T) (S, error) {
-	var b bytes.Buffer
-	enc := gob.NewEncoder(&b)
-	err := enc.Encode(entity)
-	if err != nil {
-		return "", err
-	}
-
-	h := sha256.New()
-
-	h.Write(b.Bytes())
-
-	id := fmt.Sprintf("%x", h.Sum(nil))
-	return S(id), nil
+func (mr *MemcacheRepository[T, S]) GetId(ctx context.Context, e T) (S, error) {
+	return e.GetID(), nil
 }
 
 func (mr *MemcacheRepository[T, S]) SetHost(host string) error {
@@ -137,7 +128,7 @@ func (mr *MemcacheRepository[T, S]) GetClient() *memcache.Client {
 	return mr.client
 }
 
-func NewMemcacheRepository[T any, S string](host string) Repository[T, S] {
+func NewMemcacheRepository[T Entity[S], S string](host string) Repository[T, S] {
 	return &MemcacheRepository[T, S]{
 		client: memcache.New(host),
 	}
