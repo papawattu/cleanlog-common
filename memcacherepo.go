@@ -51,6 +51,25 @@ func (mr MemcacheRepository[T, S]) Create(ctx context.Context, e T) error {
 		return err
 	}
 
+	keys, _ := mr.client.Get(mr.prefix + "keys")
+
+	str := string(id) + ","
+	if keys == nil {
+		keys = &memcache.Item{
+			Key:   mr.prefix + "keys",
+			Value: []byte(str),
+			Flags: 0,
+		}
+	} else {
+		keys.Value = append(keys.Value, []byte(str)...)
+	}
+
+	err = mr.client.Set(keys)
+
+	if err != nil {
+		return err
+	}
+
 	log.Printf("Created entity with id: %s val: %+v", id, e)
 	return nil
 }
@@ -97,7 +116,23 @@ func (mr *MemcacheRepository[T, S]) Get(ctx context.Context, id S) (T, error) {
 	return entity, nil
 }
 func (mr *MemcacheRepository[T, S]) GetAll(ctx context.Context) ([]T, error) {
-	return nil, errors.New("Not implemented")
+	keys, _ := mr.client.Get(mr.prefix + "keys")
+
+	if keys == nil {
+		return nil, nil
+	}
+
+	ids := bytes.Split(keys.Value, []byte(","))
+	entities := []T{}
+
+	for _, id := range ids {
+		e, err := mr.Get(ctx, S(id))
+		if err != nil {
+			return nil, err
+		}
+		entities = append(entities, e)
+	}
+	return entities, nil
 }
 func (mr *MemcacheRepository[T, S]) Delete(ctx context.Context, e T) error {
 	id, err := mr.GetId(ctx, e)
@@ -106,6 +141,17 @@ func (mr *MemcacheRepository[T, S]) Delete(ctx context.Context, e T) error {
 	}
 
 	mr.client.Delete(mr.prefix + string(id))
+
+	keys, _ := mr.client.Get(mr.prefix + "keys")
+
+	if keys == nil {
+		return nil
+	}
+
+	str := string(id) + ","
+	keys.Value = bytes.Replace(keys.Value, []byte(str), []byte(""), -1)
+
+	mr.client.Set(keys)
 
 	return nil
 }
